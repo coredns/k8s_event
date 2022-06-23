@@ -20,17 +20,15 @@ const (
 )
 
 type k8sEvent struct {
-	client kubernetes.Interface
-	ref    *corev1.ObjectReference
-
-	rateSet   bool
-	qps       float32
-	burst     int
-	cacheSize int
-
-	levels int
-
+	client      kubernetes.Interface
+	ref         *corev1.ObjectReference
+	rateSet     bool
+	qps         float32
+	burst       int
+	cacheSize   int
+	levels      int
 	broadcaster record.EventBroadcaster
+	l           *listener
 }
 
 func (k *k8sEvent) Init() error {
@@ -77,8 +75,8 @@ func (k *k8sEvent) Startup(config *dnsserver.Config) func() error {
 			Interface: typedv1.New(k.client.CoreV1().RESTClient()).Events(""),
 		})
 
-		i := NewInterceptor(k.ref, recorder, k.levels)
-		err = plog.LoadInterceptor(i)
+		k.l = newListener(k.ref, recorder, k.levels)
+		err = plog.RegisterListener(k.l)
 		if err != nil {
 			return err
 		}
@@ -89,6 +87,10 @@ func (k *k8sEvent) Startup(config *dnsserver.Config) func() error {
 func (k *k8sEvent) Shutdown() func() error {
 	return func() error {
 		k.broadcaster.Shutdown()
+		err := plog.DeregisterListener(k.l)
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 }
