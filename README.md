@@ -6,7 +6,7 @@
 
 ## Description
 
-*k8s_event* intercepts log printings, and reports them as Events to Kubernetes APIServer.
+*k8s_event* listens for log printings, and reports them as Events to Kubernetes APIServer.
 
 This plugin requires ...
 * the [_kubeapi_ plugin](http://github.com/coredns/kubeapi) to create a connection to the Kubernetes API.
@@ -61,7 +61,7 @@ When these environment variables are missing, this plugin reports events on beha
 
 ## Examples
 
-Intercepts log prints of `info`, `error`, and `warning`, reporting them via in-cluster Kubernetes API.
+It listens for log printings of `info`, `error`, and `warning` levels, reporting them via in-cluster Kubernetes API.
 The event sending rate is controlled by `QPS 0.15 token/sec`, `Burst 10 tokens`, and `LRUCacheSize 1024 tokens`.
 ```
     kubeapi
