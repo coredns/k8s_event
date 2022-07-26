@@ -22,7 +22,6 @@ const (
 type k8sEvent struct {
 	client      kubernetes.Interface
 	ref         *corev1.ObjectReference
-	rateSet     bool
 	qps         float32
 	burst       int
 	cacheSize   int
@@ -31,6 +30,7 @@ type k8sEvent struct {
 	l           *listener
 }
 
+// Init searches environments for Pod information, which will be used as Event Reference later
 func (k *k8sEvent) Init() error {
 	ns := os.Getenv("COREDNS_NAMESPACE")
 	pod := os.Getenv("COREDNS_POD_NAME")
@@ -50,6 +50,8 @@ func (k *k8sEvent) Init() error {
 	return nil
 }
 
+// Startup creates the Kubernetes Event Recorder, registers it as a CoreDNS' log listener
+// any calls to CoreDNS log package will now be replicated to Kubernetes Events
 func (k *k8sEvent) Startup(config *dnsserver.Config) func() error {
 	return func() error {
 		var err error
@@ -58,15 +60,11 @@ func (k *k8sEvent) Startup(config *dnsserver.Config) func() error {
 			return err
 		}
 
-		if k.rateSet {
-			k.broadcaster = record.NewBroadcasterWithCorrelatorOptions(record.CorrelatorOptions{
-				LRUCacheSize: k.cacheSize,
-				QPS:          k.qps,
-				BurstSize:    k.burst,
-			})
-		} else {
-			k.broadcaster = record.NewBroadcaster()
-		}
+		k.broadcaster = record.NewBroadcasterWithCorrelatorOptions(record.CorrelatorOptions{
+			LRUCacheSize: k.cacheSize,
+			QPS:          k.qps,
+			BurstSize:    k.burst,
+		})
 
 		source := corev1.EventSource{Component: componentName}
 		recorder := k.broadcaster.NewRecorder(scheme.Scheme, source)
@@ -84,6 +82,7 @@ func (k *k8sEvent) Startup(config *dnsserver.Config) func() error {
 	}
 }
 
+// Shutdown shutdowns the Kubernetes Event Recorder, and de-registers it from CoreDNS' log listeners
 func (k *k8sEvent) Shutdown() func() error {
 	return func() error {
 		k.broadcaster.Shutdown()

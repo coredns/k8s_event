@@ -69,7 +69,12 @@ func parse(c *caddy.Controller) (*k8sEvent, error) {
 
 // parseStanza parses a k8sEvent stanza
 func parseStanza(c *caddy.Controller) (*k8sEvent, error) {
-	ke := &k8sEvent{}
+	ke := &k8sEvent{
+		levels:    defaultLevel,
+		qps:       defaultRateQPS,
+		burst:     defaultRateBurst,
+		cacheSize: defaultRateCacheSize,
+	}
 	for c.NextBlock() {
 		switch c.Val() {
 		case "level":
@@ -88,7 +93,8 @@ func parseStanza(c *caddy.Controller) (*k8sEvent, error) {
 			ke.levels = levels
 		case "rate":
 			args := c.RemainingArgs()
-			if len(args) == 0 || len(args) > 3 {
+			argsLen := len(args)
+			if argsLen == 0 || argsLen > 3 {
 				return nil, c.ArgErr()
 			}
 
@@ -101,10 +107,7 @@ func parseStanza(c *caddy.Controller) (*k8sEvent, error) {
 			}
 			ke.qps = float32(qps)
 
-			if len(args) == 1 {
-				ke.burst = defaultRateBurst
-				ke.cacheSize = defaultRateCacheSize
-				ke.rateSet = true
+			if argsLen--; argsLen == 0 {
 				break
 			}
 
@@ -117,9 +120,7 @@ func parseStanza(c *caddy.Controller) (*k8sEvent, error) {
 			}
 			ke.burst = burst
 
-			if len(args) == 2 {
-				ke.cacheSize = defaultRateCacheSize
-				ke.rateSet = true
+			if argsLen--; argsLen == 0 {
 				break
 			}
 
@@ -131,13 +132,9 @@ func parseStanza(c *caddy.Controller) (*k8sEvent, error) {
 				return nil, c.Errf("cacheSize must be in range [%d, %d]: %d", minRateCacheSize, maxRateCacheSize, cacheSize)
 			}
 			ke.cacheSize = cacheSize
-			ke.rateSet = true
 		default:
 			return nil, c.Errf("unknown property '%s'", c.Val())
 		}
-	}
-	if ke.levels == 0 {
-		ke.levels = defaultLevel
 	}
 	return ke, nil
 }
