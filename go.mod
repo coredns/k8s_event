@@ -1,4 +1,4 @@
-module github.com/xh4n3/k8s_event
+module github.com/coredns/k8s_event
 
 go 1.18
 
