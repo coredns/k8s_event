@@ -37,13 +37,12 @@ k8s_event {
 To use this plugin, compile CoreDNS with this plugin added to the `plugin.cfg`.
 This plugin also requires the _kubeapi_ plugin, which should be added to the end of `plugin.cfg`.
 
-
-## Usage
+## Deployment
 
 By default, this plugin reports events on behalf of its own CoreDNS Pod,
 PodName and Namespace are collected through the [Downward API](https://kubernetes.io/docs/tasks/inject-data-application/environment-variable-expose-pod-information/#the-downward-api).
 
-When deploying CoreDNS, you should include the following environment variables.
+When deploying CoreDNS in kubernetes, you should include the following environment variables.
 
 ```yaml
 env:
@@ -59,14 +58,40 @@ env:
 
 When these environment variables are missing, this plugin reports events on behalf of the `default` namespace.
 
-## Examples
+Also, the `system:coredns` ClusterRole should be appended with following.
 
-It listens for log printings of `info`, `error`, and `warning` levels, reporting them via in-cluster Kubernetes API.
-The event sending rate is controlled by `QPS 0.15 token/sec`, `Burst 10 tokens`, and `LRUCacheSize 1024 tokens`.
+```yaml
+- apiGroups:
+  - events.k8s.io
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+  - update
 ```
+
+## Example
+
+Listens for log printings of `info`, `error`, and `warning` levels, and reports them via in-cluster Kubernetes API.
+The event sending rate is controlled by `QPS 0.15 token/sec`, `Burst 10 tokens`, and `LRUCacheSize 1024 tokens`.
+
+```
+.:53 {
     kubeapi
     k8s_event {
       level info error warning
       rate 0.15 10 1024
     }
+}
+```
+
+Outputs
+
+```bash
+$ kubectl get ev -A -w
+NAMESPACE   LAST SEEN   TYPE      REASON           OBJECT              MESSAGE
+default     1s          Normal    CoreDNSInfo      namespace/default   plugin/reload: Running configuration SHA512 = <omitted>
+default     1s          Warning   CoreDNSError     namespace/default   plugin/errors: 2 <omitted>. A: read udp <omitted>: i/o timeout
+default     1s          Warning   CoreDNSError     namespace/default   plugin/reload: Corefile changed but reload failed: <omitted>
 ```
